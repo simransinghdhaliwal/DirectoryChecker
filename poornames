@@ -1,0 +1,100 @@
+#!/bin/bash 
+#Simran Dhaliwal
+checkDir(){
+  #below gets all files that start with - or .
+  fileStart=$(find $1 -mindepth 1 -maxdepth 1 | grep "^.*\/[.-]")
+  #below gets gets files names that are the same, case insensitive
+  fileRepeat=$(find $1 -mindepth 1 -maxdepth 1 | sort --ignore-case|
+  uniq -i -D)
+  #below gets files names  that are longer than 14 characters 
+  filelong=$(find $1 -mindepth 1 -maxdepth 1 | egrep  "^$1\/.{15,}")
+  test=$(echo $1 | sed 's/\*/\\*/g' | 
+         sed 's/\^/\\^/g'| sed 's/\./\\./g' | sed 's/\-/\\-/g')
+  #test basically takes directory names, and puts them in the form to be 
+  #searched as a regular expression
+  #below takes all the foudn files and concats. them together
+  #totalFiles="$fileStart$newline$filelong$newline$fileBadCh$newline$fileRepeat"
+  #blelow gets characters that contain nonvalid characters
+  fileBadCh=$(find $1  -mindepth 1 -maxdepth 1  | 
+              grep "^$test\/.*[^A-Za-z._-].*")
+ 
+  #the lines below take all the found file names and concat.s them together
+  newline=$'\n'
+  totalFiles="$fileStart$newline$filelong$newline$fileBadCh$newline$fileRepeat"
+  
+  #this removes duplicates in the totalFiles variable, and below is printing 
+  #names of file correctly
+  totalFiles=$(echo "$totalFiles" | sort -u)
+  IFS=$'\n'
+ for i in $totalFiles
+  do
+      if [ -d $i ]
+      then
+ 	  echo "$i/"  #if file is a directory, print with a trailing /
+      else
+	  echo "$i"
+      fi
+  done
+
+ 
+}
+
+recur="false"
+if [ ! "$#" -ne 0 ] #if there are no args
+ then 
+    testDir="."     #make testDir set to . and do basicpoornames
+fi
+
+if [ ! "$#" -ne 1 ] #if only one arg
+  then
+    if [ $1 == "-r" ] #if the arg is -r, do recursive with .
+      then
+	recur="true"
+	testDir="."
+    else
+	testDir=$1  #if not recursive, set testDir to passed in arg
+    fi
+fi
+
+if [ ! "$#" -ne 2 ] #if two args are passed in 
+  then 
+     if [ $1 == "-r" ] #if first arg is a -r
+      then
+	 recur="true" #do recursive with passed in dir
+	 testDir=$2
+     else
+	 echo "Invalid option" >&2 #if not recursive invalid args
+	 exit 1;
+     fi
+fi
+
+
+if [ "$#" -gt 2 ] #greater than two args is invalid 
+ then 
+    echo "There is an invalid amount of operands" >&2
+    exit 1;
+elif [[ ${testDir:0:1} == "-" ]] #if directory starts with -, std error
+ then 
+    echo "Directory cannot begin with -" >&2
+    exit 1;
+elif [ !  -d $testDir ] #if dir is not a dir exit
+ then 
+    echo "It is a not directory" >&2
+    exit 1;
+elif [ -L $testDir ] #if dir is a symbolic link exit 
+ then 
+    echo "The file is a symbolic link" >&2
+    exit 1;
+elif [ !  -r $testDir ] #if we do not have proper permissions reprot it
+ then 
+    echo "$testDir does not have the proper permissions" >&2
+fi 
+
+
+
+if [ $recur == "false" ] #if recur is false do regular poornames
+then
+    checkDir  $testDir
+else #the line will call poornames for each file in testDir
+    find $testDir -type d -exec $0 '{}' \;
+fi
